@@ -1,5 +1,5 @@
-import { readByRegex } from "./utils";
-import { ReadResult, FrontMatter } from "./types";
+import { parseByRegex, ok, err } from "./utils";
+import { Result, FrontMatter } from "./types";
 const MATTER_START = /^---\s*\n/;
 const MATTER_END = "\n---";
 const YAML_KEY = /^([a-z0-9_-]+):\s*/i;
@@ -28,41 +28,27 @@ const readYAML = (content: string): FrontMatter => {
   return result;
 };
 
-export const readMatter = (
-  content: string,
-  index: number
-): ReadResult<FrontMatter> => {
-  const matterStart = readByRegex(content.slice(index), MATTER_START);
-  if (!matterStart) return null;
-  const matterEndIndex = content.indexOf(
-    MATTER_END,
-    index + matterStart.length - 1
-  );
-  if (matterEndIndex === -1) {
-    throw new Error(`Missing closing matter tag`);
+export const parseMatter = (content: string): Result<FrontMatter> => {
+  const result = parseByRegex(content, MATTER_START);
+  if (!result.ok) return err();
+  const head = result.value;
+  const tailIndex = content.indexOf(MATTER_END, head.length - 1);
+  if (tailIndex === -1) {
+    return err("Missing closing matter tag");
   }
-  const matterContent = content.slice(
-    index + matterStart.length,
-    matterEndIndex
-  );
-  const end = matterEndIndex + MATTER_END.length;
+  const matterString = content.slice(head.length, tailIndex);
+  const rest = content.slice(tailIndex + MATTER_END.length);
   // TODO: support JS Object
-  // try to parse front matter as JSON
+  // Try to parse front matter as JSON
   try {
-    const value: FrontMatter = JSON.parse(matterContent);
+    const value: FrontMatter = JSON.parse(matterString);
     if (Object.prototype.toString.call(value) === "[object Object]") {
       return {
         value,
-        start: index,
-        end,
+        rest,
       };
     }
   } catch (err) {}
 
-  const value = readYAML(matterContent);
-  return {
-    value,
-    start: index,
-    end,
-  };
+  // const result = readYAML(matter);
 };
