@@ -1,5 +1,5 @@
 module.exports = {
-  extends: ["next", "turbo", "prettier"],
+  extends: ["eslint:recommended", "next", "turbo", "prettier"],
   rules: {
     "@next/next/no-html-link-for-pages": "off",
   },
