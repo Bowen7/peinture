@@ -9,12 +9,28 @@ const YAML_TOKEN = {
   DEDENT: "DEDENT",
   LEFT_BRACKET: "LEFT_BRACKET",
 } as const;
+
+type PrimitiveType = string | number | boolean | null;
+type YAMLSequence = (PrimitiveType | YAMLSequence | YAMLMap)[];
+type YAMLMap = {
+  [key: string]: PrimitiveType | YAMLSequence | YAMLMap;
+};
+
 class Parser {
   source: string;
   size = 0;
   pos = 0;
-  indents: number[] = [];
-  tokens: (keyof typeof YAML_TOKEN)[] = [];
+  value: YAMLSequence | YAMLMap | null = null;
+  parents: (
+    | {
+        type: "map";
+        indent: number;
+        value: YAMLMap;
+      }
+    | { type: "sequence"; indent: number; value: YAMLSequence }
+    | { type: "unknown"; indent: number; value: null }
+  )[];
+  indent = 0;
   constructor(source: string) {
     this.source = source.replace(/\r\n/g, "\n");
     this.size = this.source.length;
@@ -29,12 +45,14 @@ class Parser {
     return this.source[this.pos + 1];
   }
   get lastIndent() {
-    return this.indents[this.indents.length - 1] || 0;
+    return this.parents[this.parents.length - 1]?.indent || 0;
   }
 
   parse() {
     while (!this.isEnd) {
-      this.readIndent();
+      if (!this.readIndent()) {
+        continue;
+      }
       if (this.readComment()) {
         continue;
       }
@@ -47,17 +65,27 @@ class Parser {
     }
   }
 
+  peekSequence() {
+    return this.char === CHAR_MAP.HYPHEN && this.nextChar === CHAR_MAP.SPACE;
+  }
+
+  peekLineBreak() {
+    return this.char === CHAR_MAP.LINE_BREAK;
+  }
+
   readIndent() {
     const indent = this.readWhiteSpaces();
-    const lastIndent = this.lastIndent;
-    if (indent > lastIndent) {
-      this.indents.push(indent);
-    } else if (indent < lastIndent) {
-      while (this.indents.length > 0 && indent < this.lastIndent) {
-        this.indents.pop();
-        this.tokens.pop();
+    if (!this.peekLineBreak()) {
+      return false;
+    }
+    const lastIndent = this.lastIndent + (this.peekSequence() ? 1 : 0);
+    this.indent = indent;
+    if (indent < lastIndent) {
+      while (this.parents.length > 0 && indent < this.lastIndent) {
+        this.parents.pop();
       }
     }
+    return true;
   }
 
   readWhiteSpaces() {
@@ -124,8 +152,8 @@ class Parser {
     }
   }
 
-  error(str: string) {
-    throw new Error(`Expected ${str} at ${this.at()}`);
+  error(message: string) {
+    throw new Error(`Expected ${message} at ${this.at()}`);
   }
 
   at() {
