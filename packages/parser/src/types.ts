@@ -1,15 +1,21 @@
-export type Result<T, E> =
-  | { ok: true; value: T; rest: string }
-  | { ok: false; error: E | undefined };
-
-export type FrontMatter = { [key: string]: string | number | boolean };
-
-export type JSONObject = {
-  [key: string]: string | number | boolean | JSONObject | JSONObject[];
-};
-
-export const TOKEN = {
-  BLOCK_ENTRY: "BLOCK_ENTRY",
-  BLOCK_LEAVE: "BLOCK_LEAVE",
-  COLON: "COLON",
+export const TOKEN_TYPE = {
+  MATTER_MARKER: "---",
+  END: "",
+  SEQUENCE: "-",
 } as const;
+
+export const STATE = {
+  INITIAL: "initial",
+  YAML: "yaml",
+  END: "",
+} as const;
+
+export type TokenType = (typeof TOKEN_TYPE)[keyof typeof TOKEN_TYPE];
+
+export type StateType = (typeof STATE)[keyof typeof STATE];
+
+export type Token = {
+  type: TokenType;
+  indent: number;
+  value?: string;
+};
