@@ -19,3 +19,20 @@ export type Token = {
   indent: number;
   value?: string;
 };
+
+export type MatchResult =
+  | {
+      ok: true;
+      pos: number;
+      rest: string;
+      match: string;
+    }
+  | {
+      ok: false;
+      pos: number;
+      expected: string;
+    };
+
+export type Matcher = (_input: string, _pos: number) => MatchResult;
+
+export type CharTest = (_input: string) => number;
