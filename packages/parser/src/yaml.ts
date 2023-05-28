@@ -35,13 +35,19 @@ const tokenize = (content: string): [string, string][] => {
       const lastIndent = indents[indents.length - 1] || 0;
       if (indent > lastIndent) {
         tokens.push([YAML_TOKEN.INDENT, CHAR_MAP.LINE_BREAK]);
+        indents.push(indent);
       } else {
         while (indents.length > 0 && indent < indents[indents.length - 1]) {
           indents.pop();
           tokens.push([YAML_TOKEN.DEDENT, CHAR_MAP.LINE_BREAK]);
         }
       }
-      indents.push(indent);
+    } else if (
+      char === CHAR_MAP.HYPHEN &&
+      (content[pos] === CHAR_MAP.SPACE || content[pos] === CHAR_MAP.LINE_BREAK)
+    ) {
+      tokens.push([YAML_TOKEN.SEQUENCE, char]);
+    } else if (char === CHAR_MAP.HASH && content[pos] === CHAR_MAP.SPACE) {
     }
   }
   return tokens;

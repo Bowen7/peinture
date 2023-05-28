@@ -8,7 +8,7 @@ export type ParserOkResult<T> = {
 
 export type ParserErr =
   | {
-      kind: "expected";
+      kind: "expect";
       message: string;
       rest: string;
     }
@@ -20,9 +20,8 @@ export type ParserErr =
 
 export type ParserErrResult = {
   ok: false;
-  errors: ParserErr[];
-};
+} & ParserErr;
 
 export type ParserResult<T> = ParserOkResult<T> | ParserErrResult;
 
-export type Parser<T> = (_input: string) => ParserResult<T>;
+export type Parser<T> = (_input: string, _message?: string) => ParserResult<T>;

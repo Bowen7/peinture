@@ -1,26 +1,5 @@
-import {
-  CharacterTester,
-  ParserResult,
-  ParserErrResult,
-  ParserErr,
-} from "../types";
-
-const basicErrs = (error: ParserErr, message?: string): ParserErrResult =>
-  message === undefined
-    ? {
-        ok: false,
-        errors: [error],
-      }
-    : {
-        ok: false,
-        errors: [
-          {
-            kind: "custom",
-            message,
-            rest: error.rest,
-          },
-        ],
-      };
+import { CharacterTester, ParserResult } from "../types";
+import { mapErrRes } from "./utils";
 
 export const tag =
   (str: string) =>
@@ -32,9 +11,9 @@ export const tag =
         value: str,
       };
     }
-    return basicErrs(
+    return mapErrRes(
       {
-        kind: "expected",
+        kind: "expect",
         rest: input,
         message: str,
       },
