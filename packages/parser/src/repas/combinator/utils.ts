@@ -1,9 +1,6 @@
 import { ParserErr, ParserErrResult } from "../types";
 
-export const mapErrRes = (
-  error: ParserErr,
-  message?: string
-): ParserErrResult =>
+export const errMsg = (error: ParserErr, message?: string): ParserErrResult =>
   message === undefined
     ? { ok: false, ...error }
     : {
@@ -16,8 +13,10 @@ export const mapErrRes = (
 // TODO: pretty print error
 export const displayErr = (error: ParserErrResult): string => {
   switch (error.kind) {
-    case "expect":
-      return `Expect ${error.message}`;
+    case "expected":
+      return `Expected ${error.message}`;
+    case "unexpected":
+      return `Unexpected ${error.message}`;
     case "custom":
       return error.message;
   }

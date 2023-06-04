@@ -11,3 +11,10 @@ export const isNewline = (char: string) => {
   }
   return false;
 };
+
+export const isLineEnding = (char: string) => {
+  if (char === "\n" || char === "\r") {
+    return true;
+  }
+  return false;
+};

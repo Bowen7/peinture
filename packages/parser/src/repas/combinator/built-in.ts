@@ -1,7 +1,7 @@
 import { takeWhile } from "./basic";
 import { isSpace } from "../character";
 import { Parser } from "../types";
-import { mapErrRes } from "./utils";
+import { errMsg } from "./utils";
 import { sequences, many0 } from "./advanced";
 import { expMsg } from "./modifier";
 
@@ -13,8 +13,8 @@ export const lineEnding: Parser<string> = (input: string, message?: string) => {
   } else if (input[0] === "\r" && input[1] === "\n") {
     return { ok: true, rest: input.slice(2), value: "\r\n" };
   }
-  return mapErrRes(
-    { kind: "expect", message: "line ending", rest: input },
+  return errMsg(
+    { kind: "expected", message: "line ending", rest: input },
     message
   );
 };

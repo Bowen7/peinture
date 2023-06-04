@@ -1,5 +1,5 @@
 import { Parser, ParserResult, ParserErr } from "../types";
-import { mapErrRes } from "./utils";
+import { errMsg } from "./utils";
 
 export function sequences<P1, P2>(
   _parser1: Parser<P1>,
@@ -30,7 +30,7 @@ export function sequences(...parsers: Parser<unknown>[]) {
     for (const parser of parsers) {
       const result = (parser as Parser<unknown>)(rest);
       if (!result.ok) {
-        return mapErrRes(result, message);
+        return errMsg(result, message);
       }
       rest = result.rest;
       value.push(result.value);
@@ -79,7 +79,7 @@ export function alt(...parsers: Parser<unknown>[]) {
       }
       errRes = result;
     }
-    return mapErrRes(errRes!, message);
+    return errMsg(errRes!, message);
   };
 }
 
@@ -109,11 +109,11 @@ export const terminated =
   (input: string, message?: string): ParserResult<P1> => {
     const result = parser(input);
     if (!result.ok) {
-      return mapErrRes(result, message);
+      return errMsg(result, message);
     }
     const termResult = terminator(result.rest);
     if (!termResult.ok) {
-      return mapErrRes(termResult, message);
+      return errMsg(termResult, message);
     }
     return {
       ok: true,
@@ -127,15 +127,15 @@ export const delimited =
   (input: string, message?: string): ParserResult<P2> => {
     const result1 = parser1(input);
     if (!result1.ok) {
-      return mapErrRes(result1, message);
+      return errMsg(result1, message);
     }
     const result2 = parser2(result1.rest);
     if (!result2.ok) {
-      return mapErrRes(result2, message);
+      return errMsg(result2, message);
     }
     const result3 = parser3(result2.rest);
     if (!result3.ok) {
-      return mapErrRes(result3, message);
+      return errMsg(result3, message);
     }
     return {
       ok: true,

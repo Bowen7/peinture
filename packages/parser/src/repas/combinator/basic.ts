@@ -1,5 +1,5 @@
-import { CharacterTester, ParserResult } from "../types";
-import { mapErrRes } from "./utils";
+import { CharacterTester, ParserOkResult, ParserResult } from "../types";
+import { errMsg } from "./utils";
 
 export const tag =
   (str: string) =>
@@ -11,9 +11,9 @@ export const tag =
         value: str,
       };
     }
-    return mapErrRes(
+    return errMsg(
       {
-        kind: "expect",
+        kind: "expected",
         rest: input,
         message: str,
       },
@@ -23,7 +23,7 @@ export const tag =
 
 export const takeWhile =
   (tester: CharacterTester) =>
-  (input: string): ParserResult<string> => {
+  (input: string): ParserOkResult<string> => {
     let i = 0;
     while (i < input.length) {
       if (tester(input.slice(i))) {
