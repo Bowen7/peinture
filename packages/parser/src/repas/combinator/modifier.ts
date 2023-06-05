@@ -1,34 +1,5 @@
-import { Parser, ParserResult, OkParser } from "../types";
+import { Parser, OkParser } from "../types";
 import { errMsg } from "./utils";
-
-export function peek<T>(_parser: OkParser<T>): [OkParser<T>, OkParser<null>];
-export function peek<T>(_parser: Parser<T>): [Parser<T>, OkParser<null>];
-export function peek<T>(parser: Parser<T>) {
-  let cachedInput = "";
-  let cachedResult: ParserResult<T> | null = null;
-  const _peek: Parser<T> = (input: string) => {
-    if (cachedInput !== input || !cachedResult) {
-      cachedResult = parser(input);
-      cachedInput = input;
-    }
-    return cachedResult;
-  };
-  const _consume = (input: string) => {
-    if (cachedInput !== input || !cachedResult) {
-      return {
-        ok: true,
-        rest: input,
-        value: null,
-      };
-    }
-    return {
-      ok: true,
-      rest: cachedResult.rest,
-      value: null,
-    };
-  };
-  return [_peek, _consume];
-}
 
 export const expMsg =
   <T>(parser: Parser<T>, outerMessage: string) =>
@@ -82,5 +53,22 @@ export function count<T>(parser: Parser<T>) {
       rest: input,
       value,
     };
+  };
+}
+
+export function opt<T, D = string>(
+  parser: Parser<T | D>,
+  defaultValue = "" as string
+) {
+  return (input: string) => {
+    const res = parser(input);
+    if (!res.ok) {
+      return {
+        ok: true,
+        rest: input,
+        value: defaultValue,
+      };
+    }
+    return res;
   };
 }
