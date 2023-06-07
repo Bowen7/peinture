@@ -1,23 +1,26 @@
-import { ParserErr, ParserErrResult } from "../types";
+import { ParserErrResult } from "../types";
 
-export const errMsg = (error: ParserErr, message?: string): ParserErrResult =>
-  message === undefined
-    ? { ok: false, ...error }
-    : {
-        ok: false,
-        kind: "custom",
-        message,
-        rest: error.rest,
-      };
+export const pushErrorStack = (
+  errRes: ParserErrResult,
+  message?: string | { kind: string; message: string }
+): ParserErrResult => {
+  if (!message) {
+    return errRes;
+  }
+  const nextStack = errRes.stack.slice();
+  if (typeof message === "string") {
+    nextStack.push({ kind: "custom", message });
+  } else {
+    nextStack.push(message);
+  }
+  return {
+    ...errRes,
+    stack: nextStack,
+  };
+};
 
 // TODO: pretty print error
-export const displayErr = (error: ParserErrResult): string => {
-  switch (error.kind) {
-    case "expected":
-      return `Expected ${error.message}`;
-    case "unexpected":
-      return `Unexpected ${error.message}`;
-    case "custom":
-      return error.message;
-  }
+export const displayErr = (errRes: ParserErrResult): string => {
+  const stack = errRes.stack;
+  return stack.map((err) => err.message).join("\n");
 };

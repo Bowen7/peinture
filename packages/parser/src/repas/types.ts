@@ -6,26 +6,16 @@ export type ParserOkResult<T> = {
   value: T;
 };
 
-export type ParserErr =
-  | {
-      kind: "expected";
-      message: string;
-      rest: string;
-    }
-  | {
-      kind: "custom";
-      message: string;
-      rest: string;
-    }
-  | {
-      kind: "unexpected";
-      message: string;
-      rest: string;
-    };
+export type ParserErr = {
+  kind: string;
+  message: string;
+};
 
 export type ParserErrResult = {
   ok: false;
-} & ParserErr;
+  rest: string;
+  stack: ParserErr[];
+};
 
 export type ParserResult<T> = ParserOkResult<T> | ParserErrResult;
 

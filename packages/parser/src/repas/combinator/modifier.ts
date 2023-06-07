@@ -1,19 +1,12 @@
-import { Parser, OkParser } from "../types";
-import { errMsg } from "./utils";
+import { Parser, OkParser, ParserResult } from "../types";
+import { pushErrorStack } from "./utils";
 
-export const expMsg =
+export const msg =
   <T>(parser: Parser<T>, outerMessage: string) =>
   (input: string, innerMessage?: string) => {
     const result = parser(input);
     if (!result.ok) {
-      return errMsg(
-        {
-          kind: "expected",
-          rest: input,
-          message: outerMessage,
-        },
-        innerMessage
-      );
+      return pushErrorStack(result, innerMessage || outerMessage);
     }
     return result;
   };
@@ -30,7 +23,7 @@ export function map<T, R>(parser: Parser<T>, mapper: (_value: T) => R) {
   return (input: string, message?: string) => {
     const result = parser(input);
     if (!result.ok) {
-      return errMsg(result, message);
+      return pushErrorStack(result, message);
     }
     return {
       ...result,
@@ -58,9 +51,9 @@ export function count<T>(parser: Parser<T>) {
 
 export function opt<T, D = string>(
   parser: Parser<T | D>,
-  defaultValue = "" as string
+  defaultValue = "" as D
 ) {
-  return (input: string) => {
+  return (input: string): ParserResult<T | D> => {
     const res = parser(input);
     if (!res.ok) {
       return {

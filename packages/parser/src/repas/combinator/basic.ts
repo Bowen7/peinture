@@ -1,5 +1,5 @@
 import { CharacterTester, ParserOkResult, ParserResult } from "../types";
-import { errMsg } from "./utils";
+import { pushErrorStack } from "./utils";
 
 export const tag =
   (str: string) =>
@@ -11,11 +11,11 @@ export const tag =
         value: str,
       };
     }
-    return errMsg(
+    return pushErrorStack(
       {
-        kind: "expected",
+        ok: false,
         rest: input,
-        message: str,
+        stack: [],
       },
       message
     );
