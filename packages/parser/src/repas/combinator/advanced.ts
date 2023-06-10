@@ -1,29 +1,29 @@
 import { Parser, ParserResult, ParserErrResult } from "../types";
 import { pushErrorStack } from "./utils";
 
-export function sequence<P1, P2>(
+export function seq<P1, P2>(
   _parser1: Parser<P1>,
   _parser2: Parser<P2>
 ): (_input: string) => ParserResult<[P1, P2]>;
-export function sequence<P1, P2, P3>(
+export function seq<P1, P2, P3>(
   _parser1: Parser<P1>,
   _parser2: Parser<P2>,
   _parser3: Parser<P3>
 ): (_input: string) => ParserResult<[P1, P2, P3]>;
-export function sequence<P1, P2, P3, P4>(
+export function seq<P1, P2, P3, P4>(
   _parser1: Parser<P1>,
   _parser2: Parser<P2>,
   _parser3: Parser<P3>,
   _parser4: Parser<P4>
 ): (_input: string) => ParserResult<[P1, P2, P3, P4]>;
-export function sequence<P1, P2, P3, P4, P5>(
+export function seq<P1, P2, P3, P4, P5>(
   _parser1: Parser<P1>,
   _parser2: Parser<P2>,
   _parser3: Parser<P3>,
   _parser4: Parser<P4>,
   _parser5: Parser<P5>
 ): (_input: string) => ParserResult<[P1, P2, P3, P4, P5]>;
-export function sequence(...parsers: Parser<unknown>[]) {
+export function seq(...parsers: Parser<unknown>[]) {
   return (input: string, message?: string): ParserResult<unknown> => {
     let rest = input;
     const value: unknown[] = [];
@@ -104,42 +104,40 @@ export const many0 = <T>(parser: Parser<T>) => {
   };
 };
 
-export const terminated =
-  <P1, P2>(parser: Parser<P1>, terminator: Parser<P2>) =>
-  (input: string, message?: string): ParserResult<P1> => {
-    const result = parser(input);
-    if (!result.ok) {
-      return pushErrorStack(result, message);
-    }
-    const termResult = terminator(result.rest);
-    if (!termResult.ok) {
-      return pushErrorStack(termResult, message);
-    }
-    return {
-      ok: true,
-      rest: termResult.rest,
-      value: result.value,
-    };
-  };
-
-export const delimited =
-  <P1, P2, P3>(parser1: Parser<P1>, parser2: Parser<P2>, parser3: Parser<P3>) =>
-  (input: string, message?: string): ParserResult<P2> => {
-    const result1 = parser1(input);
-    if (!result1.ok) {
-      return pushErrorStack(result1, message);
-    }
-    const result2 = parser2(result1.rest);
-    if (!result2.ok) {
-      return pushErrorStack(result2, message);
-    }
-    const result3 = parser3(result2.rest);
-    if (!result3.ok) {
-      return pushErrorStack(result3, message);
+export const escaped =
+  (normal: Parser<string>, escapable: Parser<string>, controlChar = "\\") =>
+  (input: string, message?: string): ParserResult<string> => {
+    let value = "";
+    while (input) {
+      const norRes = normal(input);
+      if (!norRes.ok) {
+        return pushErrorStack(norRes, message);
+      }
+      if (norRes.value) {
+        value += norRes.value;
+        input = norRes.rest;
+        continue;
+      }
+      if (input.startsWith(controlChar)) {
+        input = input.slice(controlChar.length);
+        const escRes = escapable(input);
+        if (!escRes.ok) {
+          return pushErrorStack(escRes, message);
+        }
+        if (!escRes.value) {
+          value += input[0];
+          input = input.slice(1);
+        } else {
+          value += escRes.value;
+          input = escRes.rest;
+        }
+        continue;
+      }
+      break;
     }
     return {
       ok: true,
-      rest: result3.rest,
-      value: result2.value,
+      rest: input,
+      value,
     };
   };
