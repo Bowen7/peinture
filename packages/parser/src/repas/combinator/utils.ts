@@ -24,3 +24,23 @@ export const displayErr = (errRes: ParserErrResult): string => {
   const stack = errRes.stack;
   return stack.map((err) => err.message).join("\n");
 };
+
+export type Range = [number, number] | number;
+export const createRangesTester = (ranges: Range[]) => {
+  return (char: string) => {
+    const code = char.charCodeAt(0);
+    for (const range of ranges) {
+      if (typeof range === "number") {
+        if (code === range) {
+          return true;
+        }
+      } else {
+        const [start, end] = range;
+        if (code >= start && code <= end) {
+          return true;
+        }
+      }
+    }
+    return false;
+  };
+};

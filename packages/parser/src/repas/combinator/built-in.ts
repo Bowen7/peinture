@@ -1,8 +1,8 @@
 import { takeWhile } from "./basic";
 import { isSpace } from "../character";
-import { Parser } from "../types";
+import { Parser, ParserResult } from "../types";
 import { pushErrorStack } from "./utils";
-import { sequence, many0 } from "./advanced";
+import { seq, many0 } from "./advanced";
 import { msg } from "./modifier";
 
 export const space0 = takeWhile(isSpace);
@@ -16,5 +16,15 @@ export const newline: Parser<string> = (input: string, message?: string) => {
   return pushErrorStack({ ok: false, rest: input, stack: [] }, message);
 };
 
-export const blankLine = msg(sequence(space0, newline), "blank line");
+export const blankLine = msg(seq(space0, newline), "blank line");
 export const blankLines = many0(blankLine);
+
+export const eof = (input: string, message?: string): ParserResult<string> => {
+  if (input.length === 0) {
+    return { ok: true, rest: input, value: "" };
+  }
+  return pushErrorStack(
+    { ok: false, rest: input, stack: [] },
+    message || "expect end of file"
+  );
+};

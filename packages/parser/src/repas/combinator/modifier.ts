@@ -65,3 +65,17 @@ export function opt<T, D = string>(
     return res;
   };
 }
+
+export function peek<T>(parser: Parser<T>) {
+  return (input: string): ParserResult<T> => {
+    const res = parser(input);
+    if (!res.ok) {
+      return res;
+    }
+    return {
+      ok: true,
+      rest: input,
+      value: res.value,
+    };
+  };
+}
