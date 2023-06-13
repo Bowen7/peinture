@@ -1,29 +1,24 @@
-import {
-  Parser,
-  ParserResult,
-  ParserErrResult,
-  ParserOkResult,
-} from "../types";
+import { Parser, ParserResult, ParserErrResult } from "../types";
 import { pushErrorStack } from "./utils";
 
 export function seq<P1, P2>(
   _parser1: Parser<P1>,
   _parser2: Parser<P2>,
   _message?: string
-): (_input: string) => ParserResult<[P1, P2]>;
+): Parser<[P1, P2]>;
 export function seq<P1, P2, P3>(
   _parser1: Parser<P1>,
   _parser2: Parser<P2>,
   _parser3: Parser<P3>,
   _message?: string
-): (_input: string) => ParserResult<[P1, P2, P3]>;
+): Parser<[P1, P2, P3]>;
 export function seq<P1, P2, P3, P4>(
   _parser1: Parser<P1>,
   _parser2: Parser<P2>,
   _parser3: Parser<P3>,
   _parser4: Parser<P4>,
   _message?: string
-): (_input: string) => ParserResult<[P1, P2, P3, P4]>;
+): Parser<[P1, P2, P3, P4]>;
 export function seq<P1, P2, P3, P4, P5>(
   _parser1: Parser<P1>,
   _parser2: Parser<P2>,
@@ -31,7 +26,7 @@ export function seq<P1, P2, P3, P4, P5>(
   _parser4: Parser<P4>,
   _parser5: Parser<P5>,
   _message?: string
-): (_input: string) => ParserResult<[P1, P2, P3, P4, P5]>;
+): Parser<[P1, P2, P3, P4, P5]>;
 export function seq(...args: unknown[]) {
   const last = args[args.length - 1];
   const message = typeof last === "string" ? last : undefined;
@@ -59,20 +54,20 @@ export function alt<P1, P2>(
   _parser1: Parser<P1>,
   _parser2: Parser<P2>,
   _message?: string
-): (_input: string) => ParserResult<P1 | P2>;
+): Parser<P1 | P2>;
 export function alt<P1, P2, P3>(
   _parser1: Parser<P1>,
   _parser2: Parser<P2>,
   _parser3: Parser<P3>,
   _message?: string
-): (_input: string) => ParserResult<P1 | P2 | P3>;
+): Parser<P1 | P2 | P3>;
 export function alt<P1, P2, P3, P4>(
   _parser1: Parser<P1>,
   _parser2: Parser<P2>,
   _parser3: Parser<P3>,
   _parser4: Parser<P4>,
   _message?: string
-): (_input: string) => ParserResult<P1 | P2 | P3 | P4>;
+): Parser<P1 | P2 | P3 | P4>;
 export function alt<P1, P2, P3, P4, P5>(
   _parser1: Parser<P1>,
   _parser2: Parser<P2>,
@@ -80,7 +75,7 @@ export function alt<P1, P2, P3, P4, P5>(
   _parser4: Parser<P4>,
   _parser5: Parser<P5>,
   _message?: string
-): (_input: string) => ParserResult<P1 | P2 | P3 | P4 | P5>;
+): Parser<P1 | P2 | P3 | P4 | P5>;
 export function alt(...args: unknown[]) {
   const last = args[args.length - 1];
   const message = typeof last === "string" ? last : undefined;
@@ -101,49 +96,6 @@ export function alt(...args: unknown[]) {
     return pushErrorStack(errRes!, message);
   };
 }
-
-export const many = <T>(
-  parser: Parser<T>,
-  m: number,
-  n = Infinity,
-  message?: string
-) => {
-  return (input: string): ParserResult<T[]> => {
-    let rest = input;
-    let count = 0;
-    const value: T[] = [];
-    while (rest.length > 0) {
-      const result = parser(rest);
-      if (!result.ok) {
-        break;
-      }
-      rest = result.rest;
-      count++;
-      value.push(result.value);
-      if (count === n) {
-        break;
-      }
-    }
-    if (value.length < m) {
-      return pushErrorStack({ ok: false, rest, stack: [] }, message);
-    }
-    return {
-      ok: true,
-      rest,
-      value,
-    };
-  };
-};
-
-export const more0 = <T>(parser: Parser<T>, message?: string) => {
-  return many(parser, 0, Infinity, message) as (
-    _input: string
-  ) => ParserOkResult<T[]>;
-};
-
-export const more1 = <T>(parser: Parser<T>, message?: string) => {
-  return many(parser, 1, Infinity, message);
-};
 
 export const delimited = <T1, T2, T3>(
   parser1: Parser<T1>,

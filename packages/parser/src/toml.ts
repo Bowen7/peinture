@@ -4,7 +4,6 @@ import {
   opt,
   newline,
   alt,
-  takeWhile,
   space0,
   peek,
   eof,
@@ -13,14 +12,14 @@ import {
   isSpace,
   isHexDigit,
   escaped,
-  take,
+  take1,
   isAlphanumeric,
   createRangesTester,
-  many,
+  more0,
+  more1,
   isDigit19,
   isDigit,
-  many1,
-  many0,
+  takeX,
 } from "./repas";
 
 const isDigit07 = (char: string) => char >= "0" && char <= "7";
@@ -145,60 +144,56 @@ const mapEscaped = (str: string) => {
 const basicStringContent = escaped(isBasicUnescaped, isEscaped, mapEscaped);
 const basicString = delimited(questionMark, basicStringContent, questionMark);
 
-const literalString = delimited(
-  apostrophe,
-  takeWhile(isLiteralChar),
-  apostrophe
-);
+const literalString = delimited(apostrophe, more0(isLiteralChar), apostrophe);
 const quotedKey = alt(basicString, literalString);
 
 const dotSep = seq(space0, tag("."), space0);
 
 const comment = seq(
   tag("#"),
-  takeWhile((c) => isAllowedCommentChar(c)),
+  more0((c) => isAllowedCommentChar(c)),
   msg(peek(alt(newline, eof)), "expect end of line")
 );
 
-const unquotedKey = take(isUnquotedKeyChar, 1);
+const unquotedKey = more1(isUnquotedKeyChar);
 const simpleKey = alt(quotedKey, unquotedKey);
 
 const keyValSep = delimited(space0, tag("="), space0);
-const dottedKey = seq(simpleKey, many(seq(dotSep, simpleKey), 1));
+const dottedKey = seq(simpleKey, more1(seq(dotSep, simpleKey)));
 const key = alt(simpleKey, dottedKey);
 
 const boolean = alt(tag("true"), tag("false"));
 
 const unsignedDecInt = alt(
   seq(
-    take(isDigit19, 1, 1),
-    many1(alt(take1(isDigit), seq(underscore, take1(isDigit))))
+    take1(isDigit19),
+    more1(alt(take1(isDigit), seq(underscore, take1(isDigit))))
   ),
-  take(isHexDigit, 1)
+  more1(isHexDigit)
 );
 const decInt = seq(opt(alt(plus, minus)), unsignedDecInt);
 
 const hexInt = seq(
   hexPrefix,
   take1(isHexDigit),
-  many1(alt(take1(isHexDigit), seq(underscore, take1(isHexDigit))))
+  more1(alt(take1(isHexDigit), seq(underscore, take1(isHexDigit))))
 );
 const octInt = seq(
   octPrefix,
   take1(isDigit07),
-  many1(alt(take1(isDigit07), seq(underscore, take1(isDigit07))))
+  more1(alt(take1(isDigit07), seq(underscore, take1(isDigit07))))
 );
 const binInt = seq(
   binPrefix,
   take1(isDigit01),
-  many1(alt(take1(isDigit01), seq(underscore, take1(isDigit01))))
+  more1(alt(take1(isDigit01), seq(underscore, take1(isDigit01))))
 );
 const integer = alt(hexInt, octInt, binInt, decInt);
 
 const floatIntPart = decInt;
 const zeroPrefixableInt = seq(
   take1(isDigit),
-  many0(alt(take1(isDigit), seq(underscore, take1(isDigit))))
+  more0(alt(take1(isDigit), seq(underscore, take1(isDigit))))
 );
 const floatExpPart = seq(opt(alt(plus, minus)), unsignedDecInt);
 const exp = seq(e, floatExpPart);
@@ -211,14 +206,14 @@ const float = alt(
   seq(floatIntPart, alt(exp, seq(frac, opt(exp))))
 );
 
-const dateFullYear = take(isDigit, 4, 4);
-const dateMonth = take(isDigit, 2, 2);
-const dateMDay = take(isDigit, 2, 2);
+const dateFullYear = takeX(isDigit, 4);
+const dateMonth = takeX(isDigit, 2);
+const dateMDay = takeX(isDigit, 2);
 const timeDelim = take1(
   (char) => char === "t" || char === "T" || isSpace(char)
 );
-const timeHour = take(isDigit, 2, 2);
-const timeMinute = take(isDigit, 2, 2);
-const timeSecond = take(isDigit, 2, 2);
-const timeSecFrac = seq(decimalPoint, take(isDigit, 1));
+const timeHour = takeX(isDigit, 2);
+const timeMinute = takeX(isDigit, 2);
+const timeSecond = takeX(isDigit, 2);
+const timeSecFrac = seq(decimalPoint, more1(isDigit));
 // const keyVal =
