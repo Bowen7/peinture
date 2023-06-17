@@ -27,17 +27,20 @@ export const displayErr = (errRes: ParserErrResult): string => {
 
 export type Range = [string, string] | string;
 export type CodeRange = [number, number] | number;
+export type RangeFunc = (_char: string) => boolean;
 
 export const range = (start: string, end: string) => (char: string) =>
   char >= start && char <= end;
 
 export const ranges =
-  (...ranges: Range[]) =>
+  (...ranges: (Range | RangeFunc)[]) =>
   (char: string) =>
     ranges.some((range) => {
       if (Array.isArray(range)) {
         const [start, end] = range;
         return char >= start && char <= end;
+      } else if (typeof range === "function") {
+        return range(char);
       }
       return char === range;
     });
@@ -47,13 +50,15 @@ export const codeRange = (start: number, end: number) => (char: string) => {
   return code >= start && code <= end;
 };
 export const codeRanges =
-  (...ranges: CodeRange[]) =>
+  (...ranges: (CodeRange | RangeFunc)[]) =>
   (char: string) => {
     const code = char.charCodeAt(0);
     return ranges.some((range) => {
       if (Array.isArray(range)) {
         const [start, end] = range;
         return code >= start && code <= end;
+      } else if (typeof range === "function") {
+        return range(char);
       }
       return code === range;
     });

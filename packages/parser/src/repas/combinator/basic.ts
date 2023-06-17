@@ -1,9 +1,9 @@
-import { CharacterTester, ParserOkResult, ParserResult } from "../types";
+import { ParserResult } from "../types";
 import { pushErrorStack } from "./utils";
 
 export const tag =
-  (str: string, message?: string) =>
-  (input: string): ParserResult<string> => {
+  (str: string) =>
+  (input: string, message?: string): ParserResult<string> => {
     if (str === input.slice(0, str.length)) {
       return {
         ok: true,
@@ -21,35 +21,23 @@ export const tag =
     );
   };
 
-export const escaped =
-  (
-    normalTester: CharacterTester,
-    escapedTester: CharacterTester,
-    mapEscaped: (_str: string) => string
-  ) =>
-  (input: string): ParserOkResult<string> => {
-    let i = 0;
-    let value = "";
-    while (i < input.length) {
-      const char = input[i];
-      const str = input.slice(i);
-      const normalLen = Number(normalTester(char, str));
-      if (normalLen > 0) {
-        i += normalLen;
-        value += str.slice(0, normalLen);
-        continue;
-      }
-      const escapedLen = Number(escapedTester(char, str));
-      if (escapedLen > 0) {
-        i += escapedLen;
-        value += mapEscaped(str.slice(0, normalLen));
-        continue;
-      }
-      break;
+export const regex = (r: RegExp) => {
+  return (input: string, message?: string): ParserResult<string> => {
+    const m = input.match(r);
+    if (m) {
+      return {
+        ok: true,
+        rest: input.slice(m[0].length),
+        value: m[0],
+      };
     }
-    return {
-      ok: true,
-      rest: input.slice(i),
-      value: value,
-    };
+    return pushErrorStack(
+      {
+        ok: false,
+        rest: input,
+        stack: [],
+      },
+      message || { kind: "regex", message: r.toString() }
+    );
   };
+};

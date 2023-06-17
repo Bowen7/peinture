@@ -2,10 +2,11 @@ import { isSpace } from "../character";
 import { Parser, ParserResult } from "../types";
 import { pushErrorStack } from "./utils";
 import { seq } from "./advanced";
-import { more0 } from "./repeat";
+import { more0, take1 } from "./repeat";
 import { msg } from "./modifier";
 
 export const space0 = more0(isSpace);
+export const space = take1(isSpace);
 
 export const newline: Parser<string> = (input: string, message?: string) => {
   if (input[0] === "\n") {

@@ -8,8 +8,8 @@ import {
 import { pushErrorStack } from "./utils";
 
 export const repeatParser =
-  <T>(parser: Parser<T>, min: number, max: number, message?: string) =>
-  (input: string): ParserResult<T[]> => {
+  <T>(parser: Parser<T>, min: number, max: number) =>
+  (input: string, message?: string): ParserResult<T[]> => {
     let rest = input;
     let count = 0;
     const value: T[] = [];
@@ -44,8 +44,8 @@ export const repeatParser =
   };
 
 export const repeatTester =
-  (tester: CharacterTester, min: number, max: number, message?: string) =>
-  (input: string): ParserResult<string> => {
+  (tester: CharacterTester, min: number, max: number) =>
+  (input: string, message?: string): ParserResult<string> => {
     let i = 0;
     let count = 0;
     while (i < input.length) {
@@ -84,100 +84,68 @@ export const repeatTester =
 export function repeat<T>(
   _parser: Parser<T>,
   _min: number,
-  _max: number,
-  _message?: string
+  _max: number
 ): Parser<T[]>;
 export function repeat(
   _tester: CharacterTester,
   _min: number,
-  _max: number,
-  _message?: string
+  _max: number
 ): Parser<string>;
 export function repeat<T>(
   parser: Parser<T> | CharacterTester,
   min = 0,
-  max = Infinity,
-  message?: string
+  max = Infinity
 ): Parser<T[]> | Parser<string> {
   const result = parser(" ", " ");
   const type = typeof result;
   if (type === "number" || type === "boolean") {
-    return repeatTester(parser as CharacterTester, min, max, message);
+    return repeatTester(parser as CharacterTester, min, max);
   }
-  return repeatParser(parser as Parser<T>, min, max, message);
+  return repeatParser(parser as Parser<T>, min, max);
 }
 
 export function take1<T>(_parser: Parser<T>, _message?: string): Parser<T[]>;
+export function take1(_tester: CharacterTester): Parser<string>;
 export function take1(
-  _tester: CharacterTester,
-  _message?: string
-): Parser<string>;
-export function take1(
-  parser: Parser<unknown> | CharacterTester,
-  message?: string
+  parser: Parser<unknown> | CharacterTester
 ): Parser<unknown> {
-  return repeat(parser as CharacterTester, 1, 1, message);
+  return repeat(parser as CharacterTester, 1, 1);
 }
 
-export function takeX<T>(
-  _parser: Parser<T>,
-  _times: number,
-  _message?: string
-): Parser<T[]>;
-export function takeX(
-  _tester: CharacterTester,
-  _times: number,
-  _message?: string
-): Parser<string>;
+export function takeX<T>(_parser: Parser<T>, _times: number): Parser<T[]>;
+export function takeX(_tester: CharacterTester, _times: number): Parser<string>;
 export function takeX(
   parser: Parser<unknown> | CharacterTester,
-  times: number,
-  message?: string
+  times: number
 ): Parser<unknown> {
-  return repeat(parser as CharacterTester, times, times, message);
+  return repeat(parser as CharacterTester, times, times);
 }
 
 export function more0<T>(
-  _parser: Parser<T>,
-  _message?: string
+  _parser: Parser<T>
 ): (_input: string) => ParserOkResult<T[]>;
 export function more0(
-  _tester: CharacterTester,
-  _message?: string
+  _tester: CharacterTester
 ): (_input: string) => ParserOkResult<string>;
 export function more0(
-  parser: Parser<unknown> | CharacterTester,
-  message?: string
+  parser: Parser<unknown> | CharacterTester
 ): Parser<unknown> {
-  return repeat(parser as CharacterTester, 0, Infinity, message);
+  return repeat(parser as CharacterTester, 0, Infinity);
 }
 
 export function more1<T>(_parser: Parser<T>, _message?: string): Parser<T[]>;
+export function more1(_tester: CharacterTester): Parser<string>;
 export function more1(
-  _tester: CharacterTester,
-  _message?: string
-): Parser<string>;
-export function more1(
-  parser: Parser<unknown> | CharacterTester,
-  message?: string
+  parser: Parser<unknown> | CharacterTester
 ): Parser<unknown> {
-  return repeat(parser as CharacterTester, 1, Infinity, message);
+  return repeat(parser as CharacterTester, 1, Infinity);
 }
 
-export function moreX<T>(
-  _parser: Parser<T>,
-  _times: number,
-  _message?: string
-): Parser<T[]>;
-export function moreX(
-  _tester: CharacterTester,
-  _times: number,
-  _message?: string
-): Parser<string>;
+export function moreX<T>(_parser: Parser<T>, _times: number): Parser<T[]>;
+export function moreX(_tester: CharacterTester, _times: number): Parser<string>;
 export function moreX(
   parser: Parser<unknown> | CharacterTester,
-  times: number,
-  message?: string
+  times: number
 ): Parser<unknown> {
-  return repeat(parser as CharacterTester, times, times, message);
+  return repeat(parser as CharacterTester, times, times);
 }

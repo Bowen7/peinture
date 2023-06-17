@@ -2,14 +2,9 @@ import { Parser, OkParser, ParserResult } from "../types";
 import { pushErrorStack } from "./utils";
 
 export const msg =
-  <T>(parser: Parser<T>, outerMessage: string) =>
-  (input: string, innerMessage?: string) => {
-    const result = parser(input);
-    if (!result.ok) {
-      return pushErrorStack(result, innerMessage || outerMessage);
-    }
-    return result;
-  };
+  <T>(parser: Parser<T>, message: string) =>
+  (input: string) =>
+    parser(input, message);
 
 export function map<T, R>(
   _parser: OkParser<T>,
@@ -77,5 +72,20 @@ export function peek<T>(parser: Parser<T>) {
       rest: input,
       value: res.value,
     };
+  };
+}
+
+export function memo<T1 extends Array<unknown>, T2>(
+  func: (..._args: T1) => T2
+) {
+  let cachedKey: T1[0] | null = null;
+  let cachedValue: T2;
+  return (...args: T1) => {
+    if (args[0] === cachedKey) {
+      return cachedValue;
+    }
+    cachedKey = args[0];
+    cachedValue = func(...args);
+    return cachedValue;
   };
 }
