@@ -142,6 +142,21 @@ export const isLiteralChar = codeRanges(
   [0x28, 0x7e],
   isNonAscii
 );
+export const literalChar = (input: string): ParserResult<string> => {
+  const char = input[0];
+  if (isLiteralChar(char)) {
+    return {
+      ok: true,
+      rest: input.slice(1),
+      value: char,
+    };
+  }
+  return {
+    ok: false,
+    rest: input,
+    stack: [],
+  };
+};
 
 export const isUnquotedKeyCode = codeRanges(
   0x2d,

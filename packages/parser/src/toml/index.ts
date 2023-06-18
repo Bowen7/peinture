@@ -1,13 +1,12 @@
 import {
+  Parser,
   seq,
   tag,
   opt,
   newline,
   alt,
   space0,
-  peek,
   eof,
-  msg,
   delimited,
   isSpace,
   isHexDigit,
@@ -20,6 +19,9 @@ import {
   regex,
   space,
   repeat,
+  map,
+  value,
+  mapRes,
 } from "../repas";
 import {
   isAllowedCommentChar,
@@ -28,7 +30,9 @@ import {
   isDigit07,
   isDigit01,
   basicChar,
+  literalChar,
 } from "./char";
+import { DateTime, TomlArray, TomlValue, TomlInlineTable } from "./types";
 
 const questionMark = tag('"');
 const apostrophe = tag("'");
@@ -56,15 +60,25 @@ const arrayTableOpen = regex(/^\[\[[\t ]*/);
 const arrayTableClose = regex(/^[\t ]*\]\]/);
 const mlBasicStringDelim = tag('"""');
 const escape = tag("\\");
+const mlLiteralStringDelim = tag("'''");
+
+type StringArray = (StringArray | string)[];
+const stringArrayToString = (array: StringArray): string =>
+  array
+    .map((item) => (Array.isArray(item) ? stringArrayToString(item) : item))
+    .join("");
 
 // Basic string
-const basicString = delimited(questionMark, more0(basicChar), questionMark);
+const basicString = map(
+  delimited(questionMark, more0(basicChar), questionMark),
+  (chars) => chars.join("")
+);
 
 // Comment
 const comment = seq(
   tag("#"),
   more0((c) => isAllowedCommentChar(c)),
-  msg(peek(alt(newline, eof)), "expect end of line")
+  alt(newline, eof)
 );
 const wsCommentNewline = more0(alt(take1(isSpace), seq(comment, newline)));
 
@@ -77,21 +91,66 @@ const quotedKey = alt(basicString, literalString);
 
 const simpleKey = alt(quotedKey, unquotedKey);
 
-const dotSep = seq(space0, tag("."), space0);
-const dottedKey = seq(simpleKey, more1(seq(dotSep, simpleKey)));
+const dotSep = map(seq(space0, tag("."), space0), (value) => value[1]);
+const dottedKey = map(seq(simpleKey, more1(seq(dotSep, simpleKey))), (value) =>
+  stringArrayToString(value)
+);
 
 // Multiline Basic String
-const mlbEscapedNl = seq(escape, space0, newline, more0(alt(space, newline)));
+const mlbEscapedNl = map(
+  seq(escape, space0, newline, more0(alt(space, newline))),
+  () => ""
+);
 const mlbContent = alt(basicChar, newline, mlbEscapedNl);
-const mlbEscapedNl = repeat(questionMark, 1, 2);
+const mlbQuotes = repeat(questionMark, 1, 2);
+
+const mlBasicBody = map(
+  seq(more0(mlbContent), more0(seq(mlbQuotes, more1(mlbContent)))),
+  (value) => stringArrayToString(value)
+);
+const mlBasicStringCloseDelim = map(
+  repeat((char: string) => char === '"', 3, 5),
+  (value: string) => value.slice(3)
+);
+const mlBasicString = map(
+  seq(mlBasicStringDelim, opt(newline), mlBasicBody, mlBasicStringCloseDelim),
+  ([, , body, closeDelim]) => body + closeDelim
+);
+
+// Multiline Literal String
+const mllQuotes = repeat(apostrophe, 1, 2);
+const mllContent = alt(literalChar, newline);
+const mllLiteralBody = map(
+  seq(more0(mllContent), opt(seq(mllQuotes, more1(mllContent)))),
+  (value) => stringArrayToString(value)
+);
+const mlLiteralStringCloseDelim = map(
+  repeat((char: string) => char === "'", 3, 5),
+  (value: string) => value.slice(3)
+);
+const mlLiteralString = map(
+  seq(
+    mlLiteralStringDelim,
+    opt(newline),
+    mllLiteralBody,
+    mlLiteralStringCloseDelim
+  ),
+  ([, , body, closeDelim]) => body + closeDelim
+);
+
+// String
+const string = alt(mlBasicString, mlLiteralString, basicString, literalString);
 
 // Key-Value pairs
 const keyvalSep = delimited(space0, equal, space0);
 const key = alt(simpleKey, dottedKey);
-const keyval = seq(key, keyvalSep, val);
+const keyval = map(seq(key, keyvalSep, val), ([key, , value]) => [
+  key,
+  value,
+]) as Parser<[string, TomlValue]>;
 
 // Boolean
-const boolean = alt(tag("true"), tag("false"));
+const boolean = map(alt(tag("true"), tag("false")), (str) => str === "true");
 
 // Integer
 const unsignedDecInt = alt(
@@ -101,22 +160,33 @@ const unsignedDecInt = alt(
   ),
   more1(isHexDigit)
 );
-const decInt = seq(opt(alt(plus, minus)), unsignedDecInt);
+const decInt = map(seq(opt(alt(plus, minus)), unsignedDecInt), (value) =>
+  parseInt(stringArrayToString(value), 10)
+);
 
-const hexInt = seq(
-  hexPrefix,
-  take1(isHexDigit),
-  more1(alt(take1(isHexDigit), seq(underscore, take1(isHexDigit))))
+const hexInt = map(
+  seq(
+    hexPrefix,
+    take1(isHexDigit),
+    more1(alt(take1(isHexDigit), seq(underscore, take1(isHexDigit))))
+  ),
+  (value) => parseInt(stringArrayToString(value), 16)
 );
-const octInt = seq(
-  octPrefix,
-  take1(isDigit07),
-  more1(alt(take1(isDigit07), seq(underscore, take1(isDigit07))))
+const octInt = map(
+  seq(
+    octPrefix,
+    take1(isDigit07),
+    more1(alt(take1(isDigit07), seq(underscore, take1(isDigit07))))
+  ),
+  (value) => parseInt(stringArrayToString(value), 8)
 );
-const binInt = seq(
-  binPrefix,
-  take1(isDigit01),
-  more1(alt(take1(isDigit01), seq(underscore, take1(isDigit01))))
+const binInt = map(
+  seq(
+    binPrefix,
+    take1(isDigit01),
+    more1(alt(take1(isDigit01), seq(underscore, take1(isDigit01))))
+  ),
+  (value) => parseInt(stringArrayToString(value), 2)
 );
 const integer = alt(hexInt, octInt, binInt, decInt);
 
@@ -124,17 +194,33 @@ const integer = alt(hexInt, octInt, binInt, decInt);
 const floatIntPart = decInt;
 const zeroPrefixableInt = seq(
   take1(isDigit),
-  more0(alt(take1(isDigit), seq(underscore, take1(isDigit))))
+  more0(alt(take1(isDigit), seq(value(underscore, ""), take1(isDigit))))
 );
 const floatExpPart = seq(opt(alt(plus, minus)), unsignedDecInt);
 const exp = seq(e, floatExpPart);
 const frac = seq(decimalPoint, zeroPrefixableInt);
 
-const specialFloat = seq(opt(alt(plus, minus)), alt(inf, nan));
+const floatMap = {
+  inf: Infinity,
+  "+inf": Infinity,
+  "-inf": -Infinity,
+  nan: NaN,
+  "+nan": NaN,
+  "-nan": NaN,
+};
+const specialFloat = map(
+  seq(opt(alt(plus, minus)), alt(inf, nan)),
+  (value): number => {
+    const str = stringArrayToString(value);
+    return floatMap[str];
+  }
+);
 
 const float = alt(
   specialFloat,
-  seq(floatIntPart, alt(exp, seq(frac, opt(exp))))
+  map(seq(floatIntPart, alt(exp, seq(frac, opt(exp)))), ([int, decimal]) =>
+    parseFloat(stringArrayToString([int.toString(), decimal]))
+  )
 );
 
 // Date
@@ -163,34 +249,110 @@ const partialTime = seq(
 );
 const fullDate = seq(dateFullYear, hyphen, dateMonth, hyphen, dateMDay);
 const fullTime = seq(partialTime, timeOffset);
-const fullDateTime = seq(fullDate, timeDelim, fullTime);
-const localDateTime = seq(fullDate, timeDelim, partialTime);
-const localDate = fullDate;
-const localTime = partialTime;
-const dateTime = alt(fullDateTime, localDateTime, localDate, localTime);
+const fullDateTime = map(seq(fullDate, timeDelim, fullTime), (value) => ({
+  type: "datetime",
+  value: stringArrayToString(value),
+}));
+const localDateTime = map(seq(fullDate, timeDelim, partialTime), (value) => ({
+  type: "datetime-local",
+  value: stringArrayToString(value),
+}));
+const localDate = map(fullDate, (value) => ({
+  type: "date-local",
+  value: stringArrayToString(value),
+}));
+const localTime = map(partialTime, (value) => ({
+  type: "time-local",
+  value: stringArrayToString(value),
+}));
+const dateTime = alt(
+  fullDateTime,
+  localDateTime,
+  localDate,
+  localTime
+) as Parser<DateTime>;
 
 // Array
 const arrayValue = seq(wsCommentNewline, val, wsCommentNewline);
-const arrayValues = seq(
-  seq(arrayValue, more0(seq(comma, arrayValue))),
-  opt(comma)
+const arrayValues = map(
+  seq(
+    map(
+      seq(arrayValue, more0(map(seq(comma, arrayValue), ([, value]) => value))),
+      ([value, values]) => [value, ...values]
+    ),
+    opt(comma)
+  ),
+  (value) => value[0]
 );
-const array = seq(arrayOpen, opt(arrayValues), wsCommentNewline, arrayClose);
+const array = map(
+  seq(arrayOpen, opt(arrayValues), wsCommentNewline, arrayClose),
+  (value) => value[0] || []
+) as Parser<TomlArray>;
 
 // Standard Table
 const stdTable = seq(stdTableOpen, key, stdTableClose);
 
 // Inline Table
-const inlineTableKeyval = seq(wsCommentNewline, keyval, wsCommentNewline);
-const inlineTableKeyvals = seq(
-  seq(inlineTableKeyval, more0(seq(comma, inlineTableKeyval))),
-  opt(comma)
+const inlineTableKeyval = map(
+  seq(wsCommentNewline, keyval, wsCommentNewline),
+  (value) => value[1]
 );
-const inlineTable = seq(
-  inlineTableOpen,
-  opt(inlineTableKeyvals),
-  wsCommentNewline,
-  inlineTableClose
+const inlineTableKeyvals = map(
+  seq(
+    seq(
+      inlineTableKeyval,
+      more0(map(seq(comma, inlineTableKeyval), (value) => value[1]))
+    ),
+    opt(comma)
+  ),
+  ([[value, values]]) => [value, ...values]
+);
+
+const setTable = (table: TomlInlineTable, key: string, value: TomlValue) => {
+  const paths = key.split(".");
+  const cur = table;
+  const len = paths.length;
+  paths.forEach((path, index) => {
+    if (index === len - 1) {
+      cur[path] = value;
+    } else if (path in cur) {
+    }
+  });
+};
+
+const inlineTable = mapRes(
+  seq(
+    inlineTableOpen,
+    opt(inlineTableKeyvals),
+    wsCommentNewline,
+    inlineTableClose
+  ),
+  (result) => {
+    if (result.ok) {
+      const [, keyvals] = result.value;
+      const table: TomlInlineTable = {};
+      for (const [key, value] of keyvals) {
+        const paths = key.split(".");
+        const len = paths.length;
+        let cur = table;
+        for (let i = 0; i < len; i++) {
+          const path = paths[i];
+          if (i === len - 1) {
+            cur[path] = value;
+          } else if (path in cur) {
+            // TODO: duplicate key
+            cur = cur[path] as TomlInlineTable;
+          } else {
+            cur[path] = {};
+            cur = cur[path] as TomlInlineTable;
+          }
+        }
+        table[key] = value;
+      }
+      return { ...result, value: table };
+    }
+    return result;
+  }
 );
 
 // Array Table
@@ -199,7 +361,22 @@ const arrayTable = seq(arrayTableOpen, key, arrayTableClose);
 // Table
 const table = alt(stdTable, arrayTable);
 
-// TODO: more types
 function val(input: string) {
-  return alt(boolean, float, integer, dateTime, array, inlineTable)(input);
+  return alt(
+    string,
+    boolean,
+    array,
+    inlineTable,
+    dateTime,
+    float,
+    integer
+  )(input);
 }
+
+const expression = alt(
+  seq(space0, opt(comment)),
+  seq(space0, keyval, space0, opt(comment)),
+  seq(space0, table, space0, opt(comment))
+);
+
+export const toml = seq(expression, more0(expression));

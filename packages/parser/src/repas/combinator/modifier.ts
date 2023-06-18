@@ -14,16 +14,29 @@ export function map<T, R>(
   _parser: Parser<T>,
   _mapper: (_value: T) => R
 ): Parser<R>;
-export function map<T, R>(parser: Parser<T>, mapper: (_value: T) => R) {
+export function map<T, R>(
+  parser: Parser<T>,
+  mapper: (_value: T) => R
+): Parser<R> {
   return (input: string, message?: string) => {
-    const result = parser(input);
+    const result = parser(input, message);
     if (!result.ok) {
-      return pushErrorStack(result, message);
+      return result;
     }
     return {
       ...result,
       value: mapper(result.value),
     };
+  };
+}
+
+export function mapRes<T, R>(
+  parser: Parser<T>,
+  mapper: (_value: ParserResult<T>) => ParserResult<R>
+): Parser<R> {
+  return (input: string, message?: string) => {
+    const result = parser(input, message);
+    return mapper(result);
   };
 }
 
@@ -89,3 +102,16 @@ export function memo<T1 extends Array<unknown>, T2>(
     return cachedValue;
   };
 }
+
+export const value =
+  <T, V>(parser: Parser<T>, val: V) =>
+  (input: string, message?: string): ParserResult<V> => {
+    const result = parser(input);
+    if (!result.ok) {
+      return pushErrorStack(result, message);
+    }
+    return {
+      ...result,
+      value: val,
+    };
+  };
