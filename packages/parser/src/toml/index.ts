@@ -6,7 +6,6 @@ import {
   newline,
   alt,
   space0,
-  eof,
   delimited,
   isSpace,
   isHexDigit,
@@ -32,7 +31,10 @@ import {
   basicChar,
   literalChar,
 } from "./char";
-import { DateTime, TomlArray, TomlValue, TomlInlineTable } from "./types";
+import { DateTime, TOMLArray, TOMLValue, TOMLTable } from "./types";
+
+let tomlValue: TOMLTable = {};
+let currentValue: TOMLTable | TOMLArray = tomlValue;
 
 const questionMark = tag('"');
 const apostrophe = tag("'");
@@ -77,8 +79,7 @@ const basicString = map(
 // Comment
 const comment = seq(
   tag("#"),
-  more0((c) => isAllowedCommentChar(c)),
-  alt(newline, eof)
+  more0((c) => isAllowedCommentChar(c))
 );
 const wsCommentNewline = more0(alt(take1(isSpace), seq(comment, newline)));
 
@@ -147,7 +148,7 @@ const key = alt(simpleKey, dottedKey);
 const keyval = map(seq(key, keyvalSep, val), ([key, , value]) => [
   key,
   value,
-]) as Parser<[string, TomlValue]>;
+]) as Parser<[string, TOMLValue]>;
 
 // Boolean
 const boolean = map(alt(tag("true"), tag("false")), (str) => str === "true");
@@ -287,10 +288,13 @@ const arrayValues = map(
 const array = map(
   seq(arrayOpen, opt(arrayValues), wsCommentNewline, arrayClose),
   (value) => value[0] || []
-) as Parser<TomlArray>;
+) as Parser<TOMLArray>;
 
 // Standard Table
-const stdTable = seq(stdTableOpen, key, stdTableClose);
+const stdTable = map(seq(stdTableOpen, key, stdTableClose), (value) => ({
+  type: "standard",
+  value: value[1],
+}));
 
 // Inline Table
 const inlineTableKeyval = map(
@@ -308,18 +312,6 @@ const inlineTableKeyvals = map(
   ([[value, values]]) => [value, ...values]
 );
 
-const setTable = (table: TomlInlineTable, key: string, value: TomlValue) => {
-  const paths = key.split(".");
-  const cur = table;
-  const len = paths.length;
-  paths.forEach((path, index) => {
-    if (index === len - 1) {
-      cur[path] = value;
-    } else if (path in cur) {
-    }
-  });
-};
-
 const inlineTable = mapRes(
   seq(
     inlineTableOpen,
@@ -330,7 +322,7 @@ const inlineTable = mapRes(
   (result) => {
     if (result.ok) {
       const [, keyvals] = result.value;
-      const table: TomlInlineTable = {};
+      const table: TOMLTable = {};
       for (const [key, value] of keyvals) {
         const paths = key.split(".");
         const len = paths.length;
@@ -341,10 +333,10 @@ const inlineTable = mapRes(
             cur[path] = value;
           } else if (path in cur) {
             // TODO: duplicate key
-            cur = cur[path] as TomlInlineTable;
+            cur = cur[path] as TOMLTable;
           } else {
             cur[path] = {};
-            cur = cur[path] as TomlInlineTable;
+            cur = cur[path] as TOMLTable;
           }
         }
         table[key] = value;
@@ -356,7 +348,10 @@ const inlineTable = mapRes(
 );
 
 // Array Table
-const arrayTable = seq(arrayTableOpen, key, arrayTableClose);
+const arrayTable = map(seq(arrayTableOpen, key, arrayTableClose), (value) => ({
+  type: "array",
+  value: value[1],
+}));
 
 // Table
 const table = alt(stdTable, arrayTable);
@@ -373,10 +368,90 @@ function val(input: string) {
   )(input);
 }
 
-const expression = alt(
-  seq(space0, opt(comment)),
-  seq(space0, keyval, space0, opt(comment)),
-  seq(space0, table, space0, opt(comment))
-);
+// const expression = alt(
+//   seq(space0, opt(comment)),
+//   seq(space0, keyval, space0, opt(comment)),
+//   seq(space0, table, space0, opt(comment))
+// );
+const setTableValue = (table: TOMLTable, key: string, value: TOMLValue) => {
+  const paths = key.split(".");
+  const len = paths.length;
+  let cur = table;
+  for (let i = 0; i < len; i++) {
+    const path = paths[i];
+    if (i === len - 1) {
+      cur[path] = value;
+    } else if (path in cur) {
+      cur = cur[path] as TOMLTable;
+    } else {
+      cur[path] = {};
+      cur = cur[path] as TOMLTable;
+    }
+  }
+};
 
-export const toml = seq(expression, more0(expression));
+const ignoreLine = seq(space0, opt(comment));
+const keyvalLine = map(
+  seq(space0, keyval, space0, opt(comment)),
+  ([, value]) => value
+);
+const tableLine = map(
+  seq(space0, table, space0, opt(comment)),
+  ([, value]) => value
+);
+const expression = (input: string) => {
+  const keyvalRes = keyvalLine(input);
+  if (keyvalRes.ok) {
+    const [key, value] = keyvalRes.value;
+    // TODO: handle array of tables
+    setTableValue(currentValue as TOMLTable, key, value);
+    return {
+      ...keyvalRes,
+      value: null,
+    };
+  }
+  const tableRes = tableLine(input);
+  if (tableRes.ok) {
+    const { type, value } = tableRes.value;
+    let cur = tomlValue;
+    const paths = value.split(".");
+    const len = paths.length;
+    for (let i = 0; i < len; i++) {
+      const path = paths[i];
+      if (i === len - 1) {
+        let target: TOMLTable | TOMLArray;
+        if (type === "standard") {
+          target = {};
+        } else {
+          target = [];
+        }
+        cur[path] = target;
+        currentValue = target;
+      } else {
+        if (path in cur) {
+          cur = cur[path] as TOMLTable;
+        } else {
+          cur[path] = {};
+          cur = cur[path] as TOMLTable;
+        }
+      }
+    }
+    return {
+      ...tableRes,
+      value: null,
+    };
+  }
+  const ignoreRes = ignoreLine(input);
+};
+
+const toml = seq(expression, more0(seq(newline, expression)));
+
+export function parse(input: string): TOMLTable {
+  tomlValue = {};
+  const result = toml(input);
+  if (!result.ok) {
+    // TODO: display error message
+    throw new Error("123");
+  }
+  return tomlValue;
+}

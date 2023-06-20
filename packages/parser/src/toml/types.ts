@@ -3,15 +3,15 @@ export type DateTime = {
   value: string;
 };
 
-export type TomlValue =
+export type TOMLValue =
   | string
   | boolean
-  | TomlArray
-  | TomlInlineTable
+  | TOMLArray
+  | TOMLTable
   | DateTime
   | number;
 
-export type TomlArray = TomlValue[];
-export type TomlInlineTable = {
-  [key: string]: TomlValue;
+export type TOMLArray = TOMLValue[];
+export type TOMLTable = {
+  [key: string]: TOMLValue;
 };
