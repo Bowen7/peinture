@@ -6,15 +6,22 @@ export type ParserOkResult<T> = {
   value: T;
 };
 
-export type ParserErr = {
-  kind: string;
-  message: string;
-};
+export type ErrMessage =
+  | {
+      kind: string;
+      value: string;
+      fatal?: boolean;
+    }
+  | string;
 
 export type ParserErrResult = {
   ok: false;
+  fatal: boolean;
   rest: string;
-  stack: ParserErr[];
+  stack: {
+    kind: string;
+    value: string;
+  }[];
 };
 
 export type ParserResult<T> = ParserOkResult<T> | ParserErrResult;
@@ -23,4 +30,5 @@ export type OkParser<T> = (
   _input: string,
   _message?: string
 ) => ParserOkResult<T>;
+
 export type Parser<T> = (_input: string, _message?: string) => ParserResult<T>;

@@ -1,28 +1,33 @@
-import { ParserErrResult } from "../types";
+import { ParserErrResult, ErrMessage } from "../types";
 
 export const pushErrorStack = (
   errRes: ParserErrResult,
-  message?: string | { kind: string; message: string }
+  message?: ErrMessage
 ): ParserErrResult => {
   if (!message) {
     return errRes;
   }
   const nextStack = errRes.stack.slice();
-  if (typeof message === "string") {
-    nextStack.push({ kind: "custom", message });
-  } else {
-    nextStack.push(message);
-  }
-  return {
+  const nextErrRes = {
     ...errRes,
     stack: nextStack,
   };
+  if (typeof message === "string") {
+    nextStack.push({ kind: "", value: message });
+  } else {
+    const { fatal, ...msg } = message;
+    if (typeof fatal === "boolean") {
+      nextErrRes.fatal = fatal;
+    }
+    nextStack.push(msg);
+  }
+  return nextErrRes;
 };
 
 // TODO: pretty print error
 export const displayErr = (errRes: ParserErrResult): string => {
   const stack = errRes.stack;
-  return stack.map((err) => err.message).join("\n");
+  return stack.map((err) => err.value).join("\n");
 };
 
 export type Range = [string, string] | string;

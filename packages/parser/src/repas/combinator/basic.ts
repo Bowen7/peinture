@@ -1,5 +1,6 @@
 import { ParserResult } from "../types";
 import { pushErrorStack } from "./utils";
+import { errRes } from "./error";
 
 export const tag =
   (str: string) =>
@@ -12,12 +13,8 @@ export const tag =
       };
     }
     return pushErrorStack(
-      {
-        ok: false,
-        rest: input,
-        stack: [],
-      },
-      message || { kind: "tag", message: str }
+      errRes(input),
+      message || { kind: "tag", value: str }
     );
   };
 
@@ -32,12 +29,8 @@ export const regex = (r: RegExp) => {
       };
     }
     return pushErrorStack(
-      {
-        ok: false,
-        rest: input,
-        stack: [],
-      },
-      message || { kind: "regex", message: r.toString() }
+      errRes(input),
+      message || { kind: "regex", value: r.toString() }
     );
   };
 };
